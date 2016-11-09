@@ -1,0 +1,113 @@
+#!/bin/bash
+# snapshot
+# (c) 2016 by cytopyge
+
+#====================================
+# initial settings
+#---------
+# locations (can be altered at will)
+# remote: [user]@[server]:[path]
+source="/home/user/Documents"
+destsnap="/home/user/snapshots/"
+destfull="/home/user/external/"
+# dt between full backups
+# 6230000 ~= 7 days
+mxdtfull=6230000
+#====================================
+
+# timestamp
+timestamp=`date "+%Y%m%d%H%M%S"`
+ts_year=${timestamp:0:4}
+ts_month=${timestamp:4:2}
+ts_day=${timestamp:6:2}
+ts_hour=${timestamp:8:2}
+ts_minute=${timestamp:10:2}
+ts_second=${timestamp:12:2}
+
+# snapshot location
+snapshot="$destsnap""$ts_year/$ts_month/$ts_day/$timestamp/"
+lastsnap="$destsnap""lastsnap"
+
+# create directories if not exists
+[ -d $destsnap ] || mkdir -p $destsnap
+[ -d $snapshot ] || mkdir -p $snapshot
+
+# rsync snap configuration
+snapoptions="--progress --archive --verbose --one-file-system \
+ --hard-links --human-readable --inplace --numeric-ids -F \
+  --stats \
+  --link-dest="$lastsnap" \
+  --log-file=$destsnap"snapshot.log""
+  #  --dry-run\
+
+# rsync snap syncronization
+echo
+echo ">>> creating snapshot..."
+echo
+rsync $snapoptions $source $snapshot
+
+# read time from previous symlink lastsnap
+timelastsnap=$(basename $(readlink $lastsnap))
+
+# remove (previous) symlink lastsnap
+rm -f $lastsnap
+
+# create (new) symlink lastsnap
+# (in $snapshot to $lastsnap for --linkdest)
+ln -s $snapshot $lastsnap
+
+#=====================
+# end of snapshotting
+#=====================
+
+#====================================
+# rsync full backup of last snapshot
+#====================================
+
+# backup location
+full="$destfull""$ts_year/$ts_month/$ts_day/$timestamp/"
+lastfull="$destfull""lastfull"
+
+# read dt snapshot - timelastsnap
+dt=$(expr $timestamp - $timelastsnap)
+
+#read time lastfull
+timelastfull=$(basename $(readlink $lastfull))
+echo
+echo -e "dt since lastfull =" $dt
+
+# if $dt more than 7 days then
+if [ "$dt" -gt $mxdtfull ]; then
+  echo ">>> starting full backup of last snapshot ..."
+  echo
+
+  # create destfull directory if not exists
+  [ -d $destfull ] || mkdir -p $destfull
+  [ -d $full ] || mkdir -p $full
+
+  # rsync full configuration
+  fulloptions="-rLptgoDv --progress --stats \
+  --log-file=$destfull"full.log""
+  #  --dry-run\
+
+  # rsync full syncronization
+  # full backup of $snapshot
+  rsync $fulloptions $snapshot $full
+
+  # read time from previous symlink full
+  timelastfull=$(basename $(readlink $lastfull))
+  # to be used for delete all incrementals since last full
+
+  #remove previous simlink to full
+  rm -f $lastfull
+
+  #create new simlink to full
+  ln -s $full $lastfull
+
+  #delete all incrementals since last full
+  #script in here <<<<<<<<<<<<<<<<<<<<<<<<
+
+  else
+
+  echo "full copy postponed"
+fi
