@@ -40,7 +40,7 @@ ts_hour=${timestamp:8:2}
 ts_minute=${timestamp:10:2}
 ts_second=${timestamp:12:2}
 ts_epoch=$(expr `date --date "${timestamp:0:8}"" ""${timestamp:8:4}" "+%s"` + $ts_second)
-echo $ts_timestamp
+echo $timestamp
 echo $ts_epoch
 
 # firstrun
