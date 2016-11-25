@@ -15,7 +15,7 @@ destfull="/home/user/___backup___/"
 destarch="/home/user/___archive___/"
 #
 # maximum days
-#--------------
+#---------------
 # that snapshots are kept
 days_mxss=10
 time_mxss=$(($days_mxss*24*60*60))
