@@ -1,37 +1,84 @@
 #!/bin/bash
+#
 # snapshot
-# (c) 2016 by cytopyge
+# version 20170130_123456
+# (c) 2017 by cytopyge
+#
 #
 #=====================================
 # initial settings
 #=====================================
 #
-# locations
-#-----------
+#
+# source locations
+#-----------------
+source="/<source>"
+excluded="/<excluded>"
+#
+# destination locations
+#----------------------
+location_snapshot="/<destination_ss>"
+location_backup="/<destination_bu>"
+location_archive="/<destination_ar>"
 # remote: [user]@[server]:[path]
-source="/home/user/Documents"
-destsnap="/home/user/___snapshots___/"
-destfull="/home/user/___backup___/"
-destarch="/home/user/___archive___/"
 #
 # maximum days
-#---------------
-# that snapshots are kept
-days_mxss=10
-time_mxss=$(($days_mxss*24*60*60))
+#--------------
 # between full backups
-days_full=5
-time_full=$(($days_full*24*60*60))
+time_full=432000 # 5 days
+# that snapshots are kept
+time_mxss=86400
+days_mxss=10 #864000^=10 days
 # between archivestime
-days_mxar=30
-time_mxar=$(($days_mxar*24*60*60))
-
-# minimum amount of backups
-keep_min_bu=10
-keep_min_ar=12
+time_mxar=2592000 # 30 days
+#
+#
+# checking mountpoints
+#---------------------
+mountpoint -q $location_snapshot
+if [ `echo $?` -eq 0 ] ;
+  then echo $location_snapshot " is a mountpoint"
+else echo $location_snapshot " is not a mountpoint"
+  echo "exiting"
+  exit
+fi
+mountpoint -q $location_backup
+if [ `echo $?` -eq 0 ] ;
+  then echo $location_backup " is a mountpoint"
+else echo $location_backup " is not a mountpoint"
+  echo "exiting"
+  exit
+fi
+mountpoint -q $location_archive
+if [ `echo $?` -eq 0 ] ;
+  then echo $location_archive " is a mountpoint"
+else echo $location_archive " is not a mountpoint"
+  echo "exiting"
+  exit
+fi
+#
+# setting destinations
+#---------------------
+destsnap="$location_snapshot""/___snapshot___/"
+destfull="$location_backup""/___backup___/"
+destarch="$location_archive""/___archive___/"
+#
+#manual confirmation
+#echo "backup to "$destination "?"
+#read -p "continue? [Y/n]" -n 1 -r
+#echo
+#if [[ $REPLY =~ ^[Nn]$ ]]
+# then exit
+#fi
+#
+#
+#====================================
+# snapshotting
+#====================================
+#
 #
 # timestamp
-#-----------
+#----------
 timestamp=`date "+%Y%m%d%H%M%S"`
 ts_year=${timestamp:0:4}
 ts_month=${timestamp:4:2}
@@ -39,70 +86,80 @@ ts_day=${timestamp:6:2}
 ts_hour=${timestamp:8:2}
 ts_minute=${timestamp:10:2}
 ts_second=${timestamp:12:2}
+#ts_epoch=$(expr $(`date --date "${timestamp:0:8}"" ""${timestamp:8:4}" "+%s"`) + $ts_second)
+#string_for_epoch2="${timestamp:0:8}"" ""${timestamp:8:4}"
+#echo "string for epoch2" $string_for_epoch2
+#ts_epoch2=`date --date "$string_for_epoch2" "+%s"`
+#calc_epoch=$(expr $ts_epoch2 + $ts_second)
+#calc_epoch=$(expr `date --date "$string_for_epoch2" "+%s"` + $ts_second)
+#ts_epoch=`date "+%s"`
 ts_epoch=$(expr `date --date "${timestamp:0:8}"" ""${timestamp:8:4}" "+%s"` + $ts_second)
-echo $timestamp
 echo $ts_epoch
-
+#
+# snapshot location
+#------------------
+snapshot="$destsnap""$timestamp/"
+lastsnap="$destsnap""lastsnap"
 # firstrun
 if [ -d $destsnap ] ; then
   firstrun=0
   else
   firstrun=1
-  echo "firstrun; perform a second run before checking error messages"
+  #ask user for creating destinations
   # create directories
   mkdir -p $destsnap
   mkdir -p $destfull
   mkdir -p $destarch
 fi
-
-#====================================
-# snapshot
-#====================================
-
-# snapshot location
-snapshot="$destsnap""$timestamp/"
-lastsnap="$destsnap""lastsnap"
-
+if [ $firstrun -eq 1 ] ; then
+  echo "firstrun; perform a second run to check error messages below"
+fi
+#
 # rsync snap configuration
+#-------------------------
 snapoptions="--progress --archive --verbose --one-file-system \
  --hard-links --human-readable --inplace --numeric-ids -F \
   --stats --partial \
+  --exclude "$excluded" \
   --link-dest="$lastsnap" \
-  --log-file=$destsnap"snapshot.log""
+  --log-file=$destsnap"snapshot"$timestamp".log""
   # --dry-run\
-
+#
 # rsync snap syncronization
+#--------------------------
 echo
 echo ">>> creating snapshot $timestamp ..."
 echo
 rsync $snapoptions $source $snapshot
-
-# cleanup
+# read time from previous symlink lastsnap
+# timelastsnap=$(basename $(readlink $lastsnap))
+#
+#
 if [ $firstrun -eq 0 ] ; then
   # remove (previous) symlink lastsnap
   rm -f $lastsnap
-  # delete snapshots older than mxss days
-  find $destsnap -type d -mtime +$days_mxss | xargs rm -rf
+  # delete snapshots older than days_mxss old
+  find $destsnap -type d -mtime +$days_mxss -exec rm -rf {} \;
+  # delete *.log files
+  find $destsnap -mtime +days_mxss -iname "*.log" -exec rm -f {} \;
+  # alternative method
+  # find $destsnap -mtime +$days_mxss -delete
 fi
-
-# update
 # create (new) symlink
 # (in $snapshot to $lastsnap for --linkdest)
 ln -s $snapshot $lastsnap
-
+#
+#
 #====================================
 # full backup of last snapshot
 #====================================
+#
+#
 # backup location
+#----------------
 full="$destfull""$timestamp/"
 lastfull="$destfull""lastfull"
-
-# rsync full configuration
-fulloptions="-rLptgoDv --progress --stats --partial \
---log-file=$destfull"full.log""
-# --dry-run
-
-# rsync backup initialization
+# if firstrun=1 or lastfull more than maxdayslastfull ago then start new full
 timelastfull=$(basename $(readlink $lastfull))
 echo "timelastfull" $timelastfull
 timelastfull_epoch=$(expr `date --date "${timelastfull:0:8}"" ""${timelastfull:8:4}" "+%s"` + "${timelastfull:12:2}")
@@ -111,77 +168,65 @@ echo
 echo $daysagosincelastfull "day(s) ago since last full backup" \
 $timelastfull
 time_dt_full_epoch=$(expr $ts_epoch - $timelastfull_epoch)
-
-# if firstrun=1 or lastfull more than maxdayslastfull ago then start new full
 if [ $firstrun -eq 1 ] || [ $time_dt_full_epoch -gt $time_full ]; then
-
-  # rsync backup syncronization
+  # start full backup with rsync
+  # rsync full configuration
+  fulloptions="-rLptgoDv --progress --stats --partial \
+  --log-file=$destfull"full"$timestamp".log""
+  # --dry-run
+  # full backup of $snapshot
   echo
-  echo ">>> creating backup of snapshot" $timestamp "..."
+  echo ">>> creating backup of last snapshot" $timestamp "..."
   echo
   rsync $fulloptions $snapshot $full
-
-  # cleanup
+  #remove previous simlink to full
   if [ $firstrun -eq 0 ] ; then
-      #remove previous simlink to full
-      rm -f $lastfull
-
-      # remove all backups older than 10 days AND keep 10 youngest
-      find $destfull -type d -mtime +$days_full | sort -nr | tail -n +$keep_min_bu | xargs rm -rf
+  rm -f $lastfull
   fi
-
-  # update
-  # create new simlink to full
-  # (in $full to $lastfull for --linkdest)
+  #create new simlink to full
   ln -s $full $lastfull
-
 else
   echo ">>> full backup postponed"
+  echo
 fi
-
+#
+#
 #====================================
 # archiving last snapshot
 #====================================
+#
+#
 # archive location
+#-----------------
 archive="$destarch""$timestamp/"
 lastarch="$destarch""lastarch"
-
-# rsync archive configuration
-archoptions="-rLptgoDv --progress --stats --partial \
---log-file=$destarch"archive.log""
-# --dry-run\
-
-# rsync archive initialization
+# if firstrun=1 or lastfull more than archdaysthreshold ago then start new full
 timelastarch=$(basename $(readlink $lastarch))
 echo "timelastarch" $timelastarch
 timelastarch_epoch=$(expr `date --date "${timelastarch:0:8}"" ""${timelastarch:8:4}" "+%s"` + "${timelastarch:12:2}")
 daysagosincelastarch=$(expr $ts_day - ${timelastarch:6:2})
 echo
-echo $daysagosincelastarch "day(s) ago since last full backup" \
+echo $daysagosincelastarch "day(s) ago last archive created" \
 $timelastarch
 time_dt_arch_epoch=$(expr $ts_epoch - $timelastarch_epoch)
-
-# if firstrun=1 or lastfull more than archdaysthreshold ago then start new full
 if [ $firstrun -eq 1 ] || [ $time_dt_arch_epoch -gt $time_mxar ]; then
-
-  # rsync archiving syncronization
+  # start archiving with rsync
+  # rsync archive configuration
+  archoptions="-rLptgoDv --progress --stats --partial \
+  --log-file=$destarch"archive"$timestamp".log""
+  # --dry-run\
+  # rsync archiving last $snapshot
   echo
-  echo ">>> start archiving last snapshot" $timestamp "..."
+  echo ">>> start archiving last snapshot" \
+  $timestamp "..."
   echo
   rsync $archoptions $snapshot $archive
-
-  # cleanup
+  #remove previous simlink to archive
   if [ $firstrun -eq 0 ] ; then
-    #remove previous simlink to archive
-    rm -f $lastarch
+  rm -f $lastarch
   fi
-
-  # not removing any archives older than 10 days AND keep 10 youngest
-  #find $destarch -type d -mtime +$days_arch | sort -nr | tail -n +$keep_min_bu | xargs rm -rf
-
   #create new simlink to archive
   ln -s $archive $lastarch
-
 else
   echo ">>> archival postponed"
 fi
