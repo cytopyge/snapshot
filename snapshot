@@ -12,14 +12,14 @@
 #
 # source locations
 #-----------------
-source="/<source>"
-excluded="/<excluded>"
+source="/media/user/data01"
+excluded=".Trash-1000/"
 #
 # destination locations
 #----------------------
-location_snapshot="/<destination_ss>"
-location_backup="/<destination_bu>"
-location_archive="/<destination_ar>"
+location_snapshot="/media/user/Transcend2TB"
+location_backup="/media/user/Transcend2TB"
+location_archive="/media/user/Transcend2TB"
 # remote: [user]@[server]:[path]
 #
 # maximum days
@@ -27,7 +27,7 @@ location_archive="/<destination_ar>"
 # between full backups
 time_full=432000 # 5 days
 # that snapshots are kept
-time_mxss=86400
+time_mxss=86400exit
 days_mxss=10 #864000^=10 days
 # between archivestime
 time_mxar=2592000 # 30 days
@@ -37,22 +37,22 @@ time_mxar=2592000 # 30 days
 #---------------------
 mountpoint -q $location_snapshot
 if [ `echo $?` -eq 0 ] ;
-  then echo $location_snapshot " is a mountpoint"
-else echo $location_snapshot " is not a mountpoint"
+  then echo "location_snapshot" $location_snapshot "is a mountpoint"
+else echo $location_snapshot "is not a mountpoint"
   echo "exiting"
   exit
 fi
 mountpoint -q $location_backup
 if [ `echo $?` -eq 0 ] ;
-  then echo $location_backup " is a mountpoint"
-else echo $location_backup " is not a mountpoint"
+  then echo "location_backup" $location_backup "is a mountpoint"
+else echo $location_backup "is not a mountpoint"
   echo "exiting"
   exit
 fi
 mountpoint -q $location_archive
 if [ `echo $?` -eq 0 ] ;
-  then echo $location_archive " is a mountpoint"
-else echo $location_archive " is not a mountpoint"
+  then echo "location_archive" $location_archive "is a mountpoint"
+else echo $location_archive "is not a mountpoint"
   echo "exiting"
   exit
 fi
@@ -120,10 +120,11 @@ fi
 snapoptions="--progress --archive --verbose --one-file-system \
  --hard-links --human-readable --inplace --numeric-ids -F \
   --stats --partial \
-  --exclude "$excluded" \
+  --exclude="$excluded" \
   --link-dest="$lastsnap" \
   --log-file=$destsnap"snapshot"$timestamp".log""
   # --dry-run\
+  # paths are relative to the source location
 #
 # rsync snap syncronization
 #--------------------------
@@ -141,7 +142,7 @@ if [ $firstrun -eq 0 ] ; then
   # delete snapshots older than days_mxss old
   find $destsnap -type d -mtime +$days_mxss -exec rm -rf {} \;
   # delete *.log files
-  find $destsnap -mtime +days_mxss -iname "*.log" -exec rm -f {} \;
+  find $destsnap -mtime +$days_mxss -iname "*.log" -exec rm -f {} \;
   # alternative method
   # find $destsnap -mtime +$days_mxss -delete
 fi
