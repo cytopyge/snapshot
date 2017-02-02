@@ -12,14 +12,14 @@
 #
 # source locations
 #-----------------
-source="/media/user/data01"
+source="<source>"
 excluded=".Trash-1000/"
 #
 # destination locations
 #----------------------
-location_snapshot="/media/user/Transcend2TB"
-location_backup="/media/user/Transcend2TB"
-location_archive="/media/user/Transcend2TB"
+location_snapshot="<destination_ss>"
+location_backup="<destination_bu>"
+location_archive="<destination_ar>"
 # remote: [user]@[server]:[path]
 #
 # maximum days
