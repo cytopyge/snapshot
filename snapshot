@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # snapshot
-# version 20170202_081040
+# version 20170203_111515
 # (c) 2017 by cytopyge
 #
 #
@@ -13,23 +13,24 @@
 # source locations
 #-----------------
 source="/<source>"
-excluded="<excluded>/"
+#excluded=".Trash-1000/"
 #
 # destination locations
 #----------------------
-location_snapshot="/<destination_ss>"
-location_backup="/<destination_ss>"
-location_archive="/<destination_ar>"
+location_snapshot="/<dest_ss>"
+location_backup="/<dest_bu>"
+location_archive="/<dest_ar>"
 # remote: [user]@[server]:[path]
 #
 # maximum days
 #--------------
 # between full backups
 time_full=432000 # 5 days
+days_full=5
 # that snapshots are kept
-time_mxss=86400exit
+time_mxss=86400
 days_mxss=10 #864000^=10 days
-# between archivestime
+# between archives
 time_mxar=2592000 # 30 days
 #
 #
@@ -62,9 +63,9 @@ fi
 destsnap="$location_snapshot""/___snapshot___/"
 destfull="$location_backup""/___backup___/"
 destarch="$location_archive""/___archive___/"
-echo $destsnap
-echo $destfull
-echo $destarch
+echo "destination snapshot $destsnap"
+echo "destination backup $destfull"
+echo "destination archive $destarch"
 
 #
 #manual confirmation
@@ -103,13 +104,14 @@ echo $ts_epoch
 # snapshot location
 #------------------
 snapshot="$destsnap""$timestamp/"
+echo "current snapshot" $snapshot
 lastsnap="$destsnap""lastsnap"
 # firstrun
 if [ -d $destsnap ] ; then
   firstrun=0
   else
   firstrun=1
-  #ask user for creating destinations
+  # option: ask user for creating destinations
   # create directories
   mkdir -p $destsnap
   mkdir -p $destfull
@@ -124,10 +126,10 @@ fi
 snapoptions="--progress --archive --verbose --one-file-system \
  --hard-links --human-readable --inplace --numeric-ids -F \
   --stats --partial \
-  --exclude="$excluded" \
   --link-dest="$lastsnap" \
   --log-file=$destsnap"snapshot"$timestamp".log""
-  # --dry-run\
+  # --dry-run \
+  # --exclude="$excluded" \
   # paths are relative to the source location
 #
 # rsync snap syncronization
@@ -143,8 +145,8 @@ rsync $snapoptions $source $snapshot
 if [ $firstrun -eq 0 ] ; then
   # remove (previous) symlink lastsnap
   rm -f $lastsnap
-  # delete snapshots older than days_mxss old
-  find $destsnap -type d -mtime +$days_mxss -exec rm -rf {} \;
+  # find and remove snapshots directories older than days_mxss old
+  find $destsnap -maxdepth 0 -type d -mtime +$days_mxss -exec rm -rf {} \;
   # delete *.log files
   find $destsnap -mtime +$days_mxss -iname "*.log" -exec rm -f {} \;
   # alternative method
