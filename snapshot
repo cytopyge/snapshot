@@ -12,7 +12,7 @@
 #
 # source locations
 #-----------------
-source="/<source>" #/<source2>"
+source="/<source>" #"/<source2>"
 #
 # exclusions
 #-----------
